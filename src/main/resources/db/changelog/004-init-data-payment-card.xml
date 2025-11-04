@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2-insert-payment-cards" author="dev">
+        <insert tableName="payment_cards">
+            <column name="user_id" valueNumeric="1"/>
+            <column name="number" value="1234567812345678"/>
+            <column name="holder" value="Ivan Ivanov"/>
+            <column name="expiration_date" value="2030-12-31"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+
+        <insert tableName="payment_cards">
+            <column name="user_id" valueNumeric="1"/>
+            <column name="number" value="8765432187654321"/>
+            <column name="holder" value="Ivan Ivanov"/>
+            <column name="expiration_date" value="2029-11-30"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+
+        <insert tableName="payment_cards">
+            <column name="user_id" valueNumeric="2"/>
+            <column name="number" value="1111222233334444"/>
+            <column name="holder" value="Anna Petrova"/>
+            <column name="expiration_date" value="2031-06-30"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+
+    </changeSet>
+</databaseChangeLog>
