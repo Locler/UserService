@@ -29,5 +29,6 @@ public class PaymentCardDto {
     @NotNull
     private Boolean active = true;
 
+    @NotNull(message = "User ID is required")
     private Long userId;
 }
