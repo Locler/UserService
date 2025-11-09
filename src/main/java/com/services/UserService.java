@@ -6,7 +6,7 @@ import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +28,7 @@ public class UserService {
         this.userRepository = userRep;
     }
 
+    @Transactional
     public UserDto createUser(UserDto dto) {
         userRepository.findById(dto.getId())
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
@@ -42,12 +43,14 @@ public class UserService {
         return userMapper.toDto(userRepository.save(user));
     }
 
+    @Transactional(readOnly = true)
     public UserDto getUserById(Long id) {
         return userRepository.findById(id)
                 .map(userMapper::toDto)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
     }
 
+    @Transactional(readOnly = true)
     public Page<UserDto> getAllUsers(String name, String surname, Pageable pageable) {
         Specification<User> spec = UserSpecification.firstNameContains(name)
                 .and(UserSpecification.surnameContains(surname));
