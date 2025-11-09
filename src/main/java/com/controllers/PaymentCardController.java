@@ -3,7 +3,7 @@ package com.controllers;
 import com.dto.PaymentCardDto;
 import com.services.PaymentCardService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +15,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/cards")
-@RequiredArgsConstructor
 public class PaymentCardController {
 
     private final PaymentCardService paymentCardService;
+
+    @Autowired
+    public PaymentCardController(PaymentCardService paymentCardService) {
+        this.paymentCardService = paymentCardService;
+    }
 
     @PostMapping("/user/{userId}")
     public ResponseEntity<PaymentCardDto> createCard(@PathVariable Long userId,@Valid @RequestBody PaymentCardDto dto) {
