@@ -4,15 +4,16 @@ import com.entities.PaymentCard;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Data
+@Builder(toBuilder = true)
 public class UserDto {
 
-    @NotNull
     private Long id;
 
     @NotNull
@@ -32,7 +33,7 @@ public class UserDto {
     private String email;
 
     @NotNull
-    private Boolean active = true;
+    private Boolean active;
 
     List<PaymentCard> paymentCards;
 }

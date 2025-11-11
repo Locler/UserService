@@ -12,10 +12,10 @@ import java.util.List;
 public interface PaymentCardMapper{
 
     //берем user.id у dto и вставляем в userId у ent
-    @Mapping(target = "user.id", source = "userId")
+    @Mapping(source = "user.id", target = "userId")
     PaymentCardDto toPaymentDto(PaymentCard entity);
 
-    @Mapping(target = "userId", source = "user.id")
+    @Mapping(source = "userId", target = "user.id")
     PaymentCard toPaymentCardEntity(PaymentCardDto dto);
 
     List<PaymentCardDto> toDtoPaymentList(List<PaymentCard> entities);
