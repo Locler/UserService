@@ -104,6 +104,7 @@ public class PaymentCardService {
             throw new IllegalArgumentException("Expiration date must be in the future");
         }
 
+        card.setNumber(dto.getNumber());
         card.setHolder(dto.getHolder());
         card.setExpirationDate(dto.getExpirationDate());
         card.setActive(dto.getActive());
@@ -119,7 +120,8 @@ public class PaymentCardService {
         if (card.getActive() == true) {
             throw new IllegalStateException("Card already in this state");
         }
-        paymentCardRep.updateCardStatus(id, true);
+        card.setActive(true);
+        paymentCardRep.save(card);
     }
 
     @CachePut(value = "cards", key = "#id")
