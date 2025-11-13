@@ -29,13 +29,18 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      # CHECKOUT
+      # 1️⃣ CHECKOUT
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # SETUP JDK
+      # 2️⃣ SETUP JDK
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -43,25 +48,26 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # BUILD + TEST
+      # 3️⃣ BUILD + TEST
       - name: Build and run tests
         run: mvn clean verify -Dspring.profiles.active=docker
 
-      # SONARQUBE ANALYSIS
+      # 4️⃣ SONARQUBE ANALYSIS
       - name: SonarQube Scan
+        if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      # BUILD DOCKER IMAGE
+      # 5️⃣ BUILD DOCKER IMAGE
       - name: Build Docker image
         run: docker build -t userservice:latest .
 
-      # SAVE DOCKER IMAGE AS ARTEFACT
+      # 6️⃣ SAVE DOCKER IMAGE AS ARTEFACT
       - name: Save Docker image artifact
         uses: actions/upload-artifact@v4
         with:
           name: userservice-image
           path: |
-            **/target/*.jar
+            target/*.jar
