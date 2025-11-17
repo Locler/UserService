@@ -66,7 +66,7 @@ public class UserController {
 
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }

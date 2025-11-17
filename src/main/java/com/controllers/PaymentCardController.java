@@ -40,29 +40,29 @@ public class PaymentCardController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<PaymentCardDto>> getCardsByUserId(@PathVariable @Min(1) Long userId) {
+    public ResponseEntity<List<PaymentCardDto>> getCardsByUserId(@PathVariable @Min(value = 1, message = "ID must be positive") Long userId) {
         return ResponseEntity.ok(paymentCardService.getCardsByUserId(userId));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PaymentCardDto> updateCard(@PathVariable @Min(1) Long id, @Valid @RequestBody PaymentCardDto dto) {
+    public ResponseEntity<PaymentCardDto> updateCard(@PathVariable @Min(value = 1, message = "ID must be positive") Long id, @Valid @RequestBody PaymentCardDto dto) {
         return ResponseEntity.ok(paymentCardService.updateCard(id, dto));
     }
 
     @PutMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateCard(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<Void> deactivateCard(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         paymentCardService.deactivateCard(id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/activate")
-    public ResponseEntity<Void> activateCard(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<Void> activateCard(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         paymentCardService.activateCard(id);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCard(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<Void> deleteCard(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         paymentCardService.deleteCard(id);
         return ResponseEntity.noContent().build();
     }
