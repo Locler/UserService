@@ -3,12 +3,15 @@ package com.services;
 import com.dto.PaymentCardDto;
 import com.entities.PaymentCard;
 import com.entities.User;
+import com.exceptions.BadRequestException;
 import com.mappers.PaymentCardMapper;
 import com.repositories.PaymentCardRep;
 import com.repositories.UserRep;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,13 +33,13 @@ public class PaymentCardService {
         this.userRepository = userRepository;
     }
 
-    @Transactional
+    @Transactional()
     public PaymentCardDto createCard(Long userId, PaymentCardDto dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (!user.getActive()) {
-            throw new IllegalStateException("Cannot create card for inactive user");
+            throw new BadRequestException("Can not create a payment card with unactive user");
         }
 
         // Проверка лимита карт
@@ -58,12 +61,20 @@ public class PaymentCardService {
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
+    @Transactional(readOnly = true)
+    public Page<PaymentCardDto> getAllCards(Pageable pageable) {
+        return paymentCardRep.findAll(pageable)
+                .map(paymentCardMapper::toPaymentDto);
+    }
+
+    @Transactional(readOnly = true)
     public PaymentCardDto getCardById(Long id) {
         return paymentCardRep.findById(id)
                 .map(paymentCardMapper::toPaymentDto)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentCardDto> getCardsByUserId(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User not found with id: " + userId);
@@ -92,13 +103,13 @@ public class PaymentCardService {
     }
 
     @Transactional
-    public void activateCard(Long id, boolean active) {
+    public void activateCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
-        if (card.getActive() == active) {
+        if (card.getActive() == true) {
             throw new IllegalStateException("Card already in this state");
         }
-        paymentCardRep.updateCardStatus(id, active);
+        paymentCardRep.updateCardStatus(id, true);
     }
 
     @Transactional
