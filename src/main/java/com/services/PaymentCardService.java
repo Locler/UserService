@@ -8,9 +8,11 @@ import com.mappers.PaymentCardMapper;
 import com.repositories.PaymentCardRep;
 import com.repositories.UserRep;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PaymentCardService {
@@ -29,12 +32,17 @@ public class PaymentCardService {
 
     private final UserRep userRepository;
 
-    @Autowired
-    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep, UserRep userRepository) {
+    private final CacheManager cacheManager;
+
+    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep, UserRep userRepository, CacheManager cacheManager) {
         this.paymentCardMapper = paymentCardMapper;
         this.paymentCardRep = paymentCardRep;
         this.userRepository = userRepository;
+        this.cacheManager = cacheManager;
     }
+
+    @Autowired
+
 
     @CachePut(value = "cards", key = "#result.id") // добавляю новый элемент
     @CacheEvict(value = "userCards", key = "#userId") // сношу список всех карт пользователя для актуальности данных
@@ -66,7 +74,7 @@ public class PaymentCardService {
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
-    @Cacheable("cards")
+
     @Transactional(readOnly = true)
     public Page<PaymentCardDto> getAllCards(Pageable pageable) {
         return paymentCardRep.findAll(pageable)
@@ -111,7 +119,7 @@ public class PaymentCardService {
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
-    @CachePut(value = "cards", key = "#id")
+    @CacheEvict(value = "cards", key = "#id")
     @Transactional
     public void activateCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -122,7 +130,7 @@ public class PaymentCardService {
         paymentCardRep.updateCardStatus(id, true);
     }
 
-    @CachePut(value = "cards", key = "#id")
+    @CacheEvict(value = "cards", key = "#id")
     @Transactional
     public void deactivateCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -136,7 +144,9 @@ public class PaymentCardService {
         paymentCardRep.save(card);
     }
 
-    @CacheEvict(value = { "cards", "userCards" }, key = "#id")
+    @Caching(evict = {
+            @CacheEvict(value = "cards", key = "#id"),
+    })
     @Transactional
     public void deleteCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -146,6 +156,9 @@ public class PaymentCardService {
         }
         card.setActive(false);
         paymentCardRep.delete(card);
+
+        // Очистка userCards вручную
+        Objects.requireNonNull(cacheManager.getCache("userCards")).evict(card.getUser().getId());
     }
 
     @CacheEvict(value = {"cards","userCards"},allEntries = true) // allEntries = true => удаляю все записи игнор ключ

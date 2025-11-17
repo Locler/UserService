@@ -55,7 +55,6 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
     }
 
-    @Cacheable(value = "users")
     @Transactional(readOnly = true)
     public Page<UserDto> getAllUsers(String name, String surname, Pageable pageable) {
         Specification<User> spec = UserSpecification.firstNameContains(name)
@@ -82,7 +81,7 @@ public class UserService {
         return userMapper.toDto(userRepository.save(user));
     }
 
-    @CachePut(value = "users", key = "#id")
+    @CacheEvict(value = "users", key = "#id")
     @Transactional
     public void activateUser(Long id) {
         User user = userRepository.findById(id)
@@ -93,7 +92,7 @@ public class UserService {
         userRepository.updateUserStatus(id,true);
     }
 
-    @CachePut(value = "users", key = "#id")
+    @CacheEvict(value = "users", key = "#id")
     @Transactional
     public void deactivateUser(Long id) {
         User user = userRepository.findById(id)
