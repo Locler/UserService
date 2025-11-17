@@ -3,6 +3,8 @@ package com.controllers;
 import com.dto.UserDto;
 import com.services.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,16 +28,16 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserDto> getUserById(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         UserDto user = userService.getUserById(id);
         return ResponseEntity.ok(user);
     }
 
     @GetMapping
     public ResponseEntity<Page<UserDto>> getAllUsers(
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String surname,
-            @PageableDefault(size = 10) Pageable pageable) {
+            @RequestParam(required = false) @Size(min = 2, max = 50) String name,
+            @RequestParam(required = false) @Size(min = 2, max = 50) String surname,
+            @PageableDefault() Pageable pageable) {
 
         Page<UserDto> users = userService.getAllUsers(name, surname, pageable);
         return ResponseEntity.ok(users);
@@ -43,21 +45,21 @@ public class UserController {
 
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserDto userDto) {
+    public ResponseEntity<UserDto> updateUser(@PathVariable @Min(value = 1, message = "ID must be positive") Long id, @Valid @RequestBody UserDto userDto) {
         UserDto updated = userService.updateUser(id, userDto);
         return ResponseEntity.ok(updated);
     }
 
 
     @PutMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deactivateUser(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         userService.deactivateUser(id);
         return ResponseEntity.ok().build();
     }
 
 
     @PutMapping("/{id}/activate")
-    public ResponseEntity<Void> activateUser(@PathVariable Long id) {
+    public ResponseEntity<Void> activateUser(@PathVariable @Min(value = 1, message = "ID must be positive") Long id) {
         userService.activateUser(id);
         return ResponseEntity.ok().build();
     }
