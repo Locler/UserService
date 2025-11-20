@@ -1,11 +1,9 @@
 package com.services;
 
 import com.dto.PaymentCardDto;
-import com.dto.UserDto;
 import com.entities.PaymentCard;
 import com.entities.User;
 import com.mappers.PaymentCardMapper;
-import com.mappers.UserMapper;
 import com.repositories.PaymentCardRep;
 import com.repositories.UserRep;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -73,7 +70,7 @@ class PaymentCardServiceTest {
                 .expirationDate(LocalDate.now().plusYears(2))
                 .active(true)
                 .userId(1L)
-                .build();;
+                .build();
     }
 
     @Test
