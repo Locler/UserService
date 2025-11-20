@@ -16,8 +16,8 @@ jobs:
         ports:
           - 5432:5432
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: Spa14062004
+          POSTGRES_USER: ${DB_USER}
+          POSTGRES_PASSWORD: ${DB_PASSWORD}
           POSTGRES_DB: useridb
         options: >-
           --health-cmd="pg_isready -U postgres"
