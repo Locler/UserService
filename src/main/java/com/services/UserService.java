@@ -34,8 +34,6 @@ public class UserService {
     @CachePut(value = "users", key = "#result.id")
     @Transactional
     public UserDto createUser(UserDto dto) {
-        userRepository.findById(dto.getId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalStateException("User with this email already exists");
         }
@@ -89,7 +87,8 @@ public class UserService {
         if (user.getActive() == true) {
             throw new IllegalStateException("User is already in this state");
         }
-        userRepository.updateUserStatus(id,true);
+        user.setActive(true);
+        userRepository.save(user);
     }
 
     @CacheEvict(value = "users", key = "#id")
