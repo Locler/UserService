@@ -8,6 +8,11 @@ import com.mappers.PaymentCardMapper;
 import com.repositories.PaymentCardRep;
 import com.repositories.UserRep;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -16,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PaymentCardService {
@@ -26,13 +32,18 @@ public class PaymentCardService {
 
     private final UserRep userRepository;
 
+    private final CacheManager cacheManager;
+
     @Autowired
-    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep, UserRep userRepository) {
+    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep, UserRep userRepository, CacheManager cacheManager) {
         this.paymentCardMapper = paymentCardMapper;
         this.paymentCardRep = paymentCardRep;
         this.userRepository = userRepository;
+        this.cacheManager = cacheManager;
     }
 
+    @CachePut(value = "cards", key = "#result.id") // добавляю новый элемент
+    @CacheEvict(value = "userCards", key = "#userId") // сношу список всех карт пользователя для актуальности данных
     @Transactional()
     public PaymentCardDto createCard(Long userId, PaymentCardDto dto) {
         User user = userRepository.findById(userId)
@@ -61,12 +72,14 @@ public class PaymentCardService {
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
+
     @Transactional(readOnly = true)
     public Page<PaymentCardDto> getAllCards(Pageable pageable) {
         return paymentCardRep.findAll(pageable)
                 .map(paymentCardMapper::toPaymentDto);
     }
 
+    @Cacheable(value = "cards", key = "#id")
     @Transactional(readOnly = true)
     public PaymentCardDto getCardById(Long id) {
         return paymentCardRep.findById(id)
@@ -74,6 +87,7 @@ public class PaymentCardService {
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
     }
 
+    @Cacheable(value = "userCards", key = "#userId")
     @Transactional(readOnly = true)
     public List<PaymentCardDto> getCardsByUserId(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -82,6 +96,7 @@ public class PaymentCardService {
         return paymentCardMapper.toDtoPaymentList(paymentCardRep.findByUserId(userId));
     }
 
+    @CachePut(value = "cards", key = "#id")
     @Transactional
     public PaymentCardDto updateCard(Long id, PaymentCardDto dto) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -95,6 +110,7 @@ public class PaymentCardService {
             throw new IllegalArgumentException("Expiration date must be in the future");
         }
 
+        card.setNumber(dto.getNumber());
         card.setHolder(dto.getHolder());
         card.setExpirationDate(dto.getExpirationDate());
         card.setActive(dto.getActive());
@@ -102,6 +118,7 @@ public class PaymentCardService {
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
+    @CacheEvict(value = "cards", key = "#id")
     @Transactional
     public void activateCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -109,9 +126,11 @@ public class PaymentCardService {
         if (card.getActive() == true) {
             throw new IllegalStateException("Card already in this state");
         }
-        paymentCardRep.updateCardStatus(id, true);
+        card.setActive(true);
+        paymentCardRep.save(card);
     }
 
+    @CacheEvict(value = "cards", key = "#id")
     @Transactional
     public void deactivateCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -125,6 +144,9 @@ public class PaymentCardService {
         paymentCardRep.save(card);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "cards", key = "#id"),
+    })
     @Transactional
     public void deleteCard(Long id) {
         PaymentCard card = paymentCardRep.findById(id)
@@ -134,7 +156,14 @@ public class PaymentCardService {
         }
         card.setActive(false);
         paymentCardRep.delete(card);
+
+        // Очистка userCards вручную
+        Objects.requireNonNull(cacheManager.getCache("userCards")).evict(card.getUser().getId());
     }
 
+    @CacheEvict(value = {"cards","userCards"},allEntries = true) // allEntries = true => удаляю все записи игнор ключ
+    public void clearAllCache() {
+        System.out.println("Clearing all card caches");
+    }
 
 }

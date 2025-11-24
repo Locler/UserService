@@ -6,6 +6,9 @@ import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,10 +31,9 @@ public class UserService {
         this.userRepository = userRep;
     }
 
+    @CachePut(value = "users", key = "#result.id")
     @Transactional
     public UserDto createUser(UserDto dto) {
-        userRepository.findById(dto.getId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalStateException("User with this email already exists");
         }
@@ -43,6 +45,7 @@ public class UserService {
         return userMapper.toDto(userRepository.save(user));
     }
 
+    @Cacheable(value = "users", key = "#id")
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id) {
         return userRepository.findById(id)
@@ -58,6 +61,7 @@ public class UserService {
                 .map(userMapper::toDto);
     }
 
+    @CachePut(value = "users", key = "#id")
     @Transactional
     public UserDto updateUser(Long id, UserDto dto) {
         User user = userRepository.findById(id)
@@ -75,6 +79,7 @@ public class UserService {
         return userMapper.toDto(userRepository.save(user));
     }
 
+    @CacheEvict(value = "users", key = "#id")
     @Transactional
     public void activateUser(Long id) {
         User user = userRepository.findById(id)
@@ -82,9 +87,11 @@ public class UserService {
         if (user.getActive() == true) {
             throw new IllegalStateException("User is already in this state");
         }
-        userRepository.updateUserStatus(id,true);
+        user.setActive(true);
+        userRepository.save(user);
     }
 
+    @CacheEvict(value = "users", key = "#id")
     @Transactional
     public void deactivateUser(Long id) {
         User user = userRepository.findById(id)
@@ -98,6 +105,7 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @CacheEvict(value = { "users", "userCards" }, key = "#id")
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
@@ -106,6 +114,12 @@ public class UserService {
             throw new IllegalStateException("User already inactive");
         }
         user.setActive(false);
-        userRepository.deleteById(id);
+        userRepository.delete(user);
     }
+
+    @CacheEvict(value = { "users", "userCards" }, allEntries = true)
+    public void clearAllCache() {
+        System.out.println("Clearing all user caches");
+    }
+
 }
