@@ -7,12 +7,13 @@ import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.List;
 
 @Data
 @Builder(toBuilder = true)
-public class UserDto {
+public class UserDto implements Serializable {
 
     private Long id;
 
