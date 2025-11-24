@@ -28,9 +28,7 @@ public class PaymentCardDto implements Serializable {
     @Future(message = "Expiration date must be in the future")
     private LocalDate expirationDate;
 
-    @NotNull
     private Boolean active;
 
-    @NotNull(message = "User ID is required")
     private Long userId;
 }

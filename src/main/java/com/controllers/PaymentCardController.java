@@ -44,7 +44,7 @@ public class PaymentCardController {
         return ResponseEntity.ok(paymentCardService.getAllCards(pageable));
     }
 
-    @GetMapping("/user/{userId}")
+    @GetMapping("/users/{userId}")
     public ResponseEntity<List<PaymentCardDto>> getCardsByUserId(
             @PathVariable @Min(value = 1, message = "ID must be positive") Long userId
     ) {

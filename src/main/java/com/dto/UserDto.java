@@ -33,7 +33,6 @@ public class UserDto implements Serializable {
     @Size(max = 100, message = "Email cannot be longer than 100 characters")
     private String email;
 
-    @NotNull
     private Boolean active;
 
     List<PaymentCard> paymentCards;
