@@ -11,7 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +39,10 @@ class PaymentCardServiceTest {
     private UserRep userRepository;
     @Mock
     private PaymentCardMapper cardMapper;
+    @Mock
+    private Cache cache;
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private PaymentCardService cardService;
@@ -162,12 +169,15 @@ class PaymentCardServiceTest {
 
     @Test
     void deleteCard() {
+        when(cacheManager.getCache("userCards")).thenReturn(cache);
         when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
         doNothing().when(cardRepository).delete(card);
+        doNothing().when(cache).evict(1L); // evict по userId
 
         cardService.deleteCard(10L);
 
         verify(cardRepository).delete(card);
+        verify(cache).evict(1L);
     }
 
 }
