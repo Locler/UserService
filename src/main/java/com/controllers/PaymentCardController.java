@@ -2,10 +2,6 @@ package com.controllers;
 
 import com.dto.PaymentCardDto;
 import com.services.PaymentCardService;
-package com.controllers;
-
-import com.dto.PaymentCardDto;
-import com.services.PaymentCardService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
