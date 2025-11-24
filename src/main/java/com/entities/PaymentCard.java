@@ -4,10 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -17,7 +14,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment_cards", indexes = {
-        @Index(name = "idx_cards_number", columnList = "number",unique = true),
         @Index(name = "idx_cards_user", columnList = "user_id")
 })
 @Getter
@@ -25,6 +21,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
+@Builder(toBuilder = true)
 public class PaymentCard {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
