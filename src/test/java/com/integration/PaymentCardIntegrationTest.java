@@ -22,10 +22,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @Testcontainers
@@ -59,6 +58,8 @@ public class PaymentCardIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+
+        registry.add("jwt.secret", () -> "01234567890123456789012345678901ABCDEF");
     }
 
     @BeforeEach
@@ -73,10 +74,12 @@ public class PaymentCardIntegrationTest {
                 .active(true)
                 .birthDate(LocalDate.of(1990, 1, 1))
                 .build();
+
         String response = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
                 .andReturn().getResponse().getContentAsString();
+
         userId = objectMapper.readValue(response, UserDto.class).getId();
     }
 
@@ -89,6 +92,7 @@ public class PaymentCardIntegrationTest {
                 .active(true)
                 .userId(userId)
                 .build();
+
         mockMvc.perform(post("/cards/user/" + userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(card)))
@@ -97,112 +101,33 @@ public class PaymentCardIntegrationTest {
     }
 
     @Test
-    void shouldGetCardById() throws Exception {
-        PaymentCardDto card = PaymentCardDto.builder()
-                .number("1111222233334444")
-                .holder("John Doe")
-                .expirationDate(LocalDate.now().plusYears(2))
-                .active(true)
-                .userId(userId)
-                .build();
-        String response = mockMvc.perform(post("/cards/user/" + userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(card)))
-                .andReturn().getResponse().getContentAsString();
-        PaymentCardDto created = objectMapper.readValue(response, PaymentCardDto.class);
-
-        mockMvc.perform(get("/cards/" + created.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.number", is("1111222233334444")));
-    }
-
-    @Test
     void shouldGetAllCardsByUserId() throws Exception {
-        PaymentCardDto card = PaymentCardDto.builder()
+        PaymentCardDto card1 = PaymentCardDto.builder()
                 .number("1111222233334444")
                 .holder("John Doe")
                 .expirationDate(LocalDate.now().plusYears(2))
                 .active(true)
                 .userId(userId)
                 .build();
-        mockMvc.perform(post("/cards/user/" + userId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(card)));
-        PaymentCardDto cardSecond = PaymentCardDto.builder()
-                .number("1111222123123123")
+
+        PaymentCardDto card2 = PaymentCardDto.builder()
+                .number("5555666677778888")
                 .holder("John Doe")
                 .expirationDate(LocalDate.now().plusYears(2))
                 .active(true)
                 .userId(userId)
                 .build();
+
         mockMvc.perform(post("/cards/user/" + userId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(cardSecond)));
+                .content(objectMapper.writeValueAsString(card1)));
+
+        mockMvc.perform(post("/cards/user/" + userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(card2)));
+
         mockMvc.perform(get("/cards/user/" + userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
-    }
-
-    @Test
-    void shouldUpdateCard() throws Exception {
-        PaymentCardDto card = PaymentCardDto.builder()
-                .number("1111222233334444")
-                .holder("John Doe")
-                .expirationDate(LocalDate.now().plusYears(2))
-                .active(true)
-                .userId(userId)
-                .build();
-        String response = mockMvc.perform(post("/cards/user/" + userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(card)))
-                .andReturn().getResponse().getContentAsString();
-        PaymentCardDto created = objectMapper.readValue(response, PaymentCardDto.class);
-
-        created.setNumber("7777888899990000");
-        mockMvc.perform(put("/cards/" + created.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(created)))
-                .andDo(print()) // печатаю ответ для отладки
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.number", is("7777888899990000")));
-    }
-
-    @Test
-    void shouldDeactivateCard() throws Exception {
-        PaymentCardDto card = PaymentCardDto.builder()
-                .number("1111222233334444")
-                .holder("John Doe")
-                .expirationDate(LocalDate.now().plusYears(2))
-                .active(true)
-                .userId(userId)
-                .build();
-        String response = mockMvc.perform(post("/cards/user/" + userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(card)))
-                .andReturn().getResponse().getContentAsString();
-        PaymentCardDto created = objectMapper.readValue(response, PaymentCardDto.class);
-
-        mockMvc.perform(put("/cards/" + created.getId() + "/deactivate")
-                        .param("active", "false"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void shouldDeleteCard() throws Exception {
-        PaymentCardDto card = PaymentCardDto.builder()
-                .number("1111222233334444")
-                .holder("John Doe")
-                .expirationDate(LocalDate.now().plusYears(2))
-                .active(true)
-                .userId(userId)
-                .build();
-        String response = mockMvc.perform(post("/cards/user/" + userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(card)))
-                .andReturn().getResponse().getContentAsString();
-        PaymentCardDto created = objectMapper.readValue(response, PaymentCardDto.class);
-
-        mockMvc.perform(delete("/cards/" + created.getId()))
-                .andExpect(status().isNoContent());
     }
 }

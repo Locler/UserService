@@ -22,17 +22,28 @@ public class UserController {
 
     private final UserService userService;
 
+    private String extractToken(String header) {
+        if (header == null || !header.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Missing or invalid Authorization header");
+        }
+        return header.substring(7);
+    }
+
     @PostMapping
-    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserDto userDto) {
-        UserDto created = userService.createUser(userDto);
+    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserDto userDto,
+                                              @RequestHeader("Authorization") String authHeader) {
+        String token = extractToken(authHeader);
+        UserDto created = userService.createUser(userDto, token);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDto> getUserById(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id
+            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        UserDto user = userService.getUserById(id);
+        String token = extractToken(authHeader);
+        UserDto user = userService.getUserById(id, token);
         return ResponseEntity.ok(user);
     }
 
@@ -40,42 +51,52 @@ public class UserController {
     public ResponseEntity<Page<UserDto>> getAllUsers(
             @RequestParam(required = false) @Size(min = 2, max = 50) String name,
             @RequestParam(required = false) @Size(min = 2, max = 50) String surname,
-            @PageableDefault Pageable pageable
+            @PageableDefault Pageable pageable,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        Page<UserDto> users = userService.getAllUsers(name, surname, pageable);
+        String token = extractToken(authHeader);
+        Page<UserDto> users = userService.getAllUsers(name, surname, pageable, token);
         return ResponseEntity.ok(users);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateUser(
             @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @Valid @RequestBody UserDto userDto
+            @Valid @RequestBody UserDto userDto,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        UserDto updated = userService.updateUser(id, userDto);
+        String token = extractToken(authHeader);
+        UserDto updated = userService.updateUser(id, userDto, token);
         return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivateUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id
+            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        userService.deactivateUser(id);
+        String token = extractToken(authHeader);
+        userService.deactivateUser(id, token);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/activate")
     public ResponseEntity<Void> activateUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id
+            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        userService.activateUser(id);
+        String token = extractToken(authHeader);
+        userService.activateUser(id, token);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id
+            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        userService.deleteUser(id);
+        String token = extractToken(authHeader);
+        userService.deleteUser(id, token);
         return ResponseEntity.noContent().build();
     }
 }

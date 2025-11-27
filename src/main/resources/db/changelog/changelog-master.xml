@@ -6,10 +6,6 @@
 
     <include file="db/changelog/001-init-user-shema.xml"/>
     <include file="db/changelog/002-init-payment-card-shema.xml"/>
-    <include file="db/changelog/003-init-data-user.xml"/>
-    <include file="db/changelog/004-init-data-payment-card.xml"/>
-
-    <changeSet id="0" author="admin">
-    </changeSet>
-
+    <!--<include file="db/changelog/003-init-data-user.xml"/>
+    <include file="db/changelog/004-init-data-payment-card.xml"/>-->
 </databaseChangeLog>

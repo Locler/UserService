@@ -1,5 +1,6 @@
 package com.services;
 
+import com.accessChecker.AccessChecker;
 import com.dto.PaymentCardDto;
 import com.entities.PaymentCard;
 import com.entities.User;
@@ -7,6 +8,7 @@ import com.exceptions.BadRequestException;
 import com.mappers.PaymentCardMapper;
 import com.repositories.PaymentCardRep;
 import com.repositories.UserRep;
+import io.jsonwebtoken.Claims;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -34,34 +36,40 @@ public class PaymentCardService {
 
     private final CacheManager cacheManager;
 
+    private final JwtService jwtService;
+
+    private final AccessChecker accessChecker;
+
     @Autowired
-    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep, UserRep userRepository, CacheManager cacheManager) {
+    public PaymentCardService(PaymentCardMapper paymentCardMapper, PaymentCardRep paymentCardRep,
+                              UserRep userRepository, CacheManager cacheManager,
+                              JwtService jwtService, AccessChecker accessChecker) {
         this.paymentCardMapper = paymentCardMapper;
         this.paymentCardRep = paymentCardRep;
         this.userRepository = userRepository;
         this.cacheManager = cacheManager;
+        this.jwtService = jwtService;
+        this.accessChecker = accessChecker;
     }
 
     @CachePut(value = "cards", key = "#result.id") // добавляю новый элемент
     @CacheEvict(value = "userCards", key = "#userId") // сношу список всех карт пользователя для актуальности данных
     @Transactional()
-    public PaymentCardDto createCard(Long userId, PaymentCardDto dto) {
+    public PaymentCardDto createCard(Long userId, PaymentCardDto dto,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkUserAccess(userId, claims);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!user.getActive()) throw new BadRequestException("Cannot create card for inactive user");
 
-        if (!user.getActive()) {
-            throw new BadRequestException("Can not create a payment card with unactive user");
-        }
-
-        // Проверка лимита карт
         if (user.getPaymentCards() != null && user.getPaymentCards().size() >= 5) {
             throw new IllegalStateException("User cannot have more than 5 cards");
         }
-
         if (dto.getExpirationDate().isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("Expiration date must be in the future");
         }
-
         if (paymentCardRep.existsByNumber(dto.getNumber())) {
             throw new IllegalArgumentException("Card number already exists");
         }
@@ -69,19 +77,29 @@ public class PaymentCardService {
         PaymentCard card = paymentCardMapper.toPaymentCardEntity(dto);
         card.setUser(user);
         card.setActive(true);
+
         return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
     }
 
 
     @Transactional(readOnly = true)
-    public Page<PaymentCardDto> getAllCards(Pageable pageable) {
+    public Page<PaymentCardDto> getAllCards(Pageable pageable,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkAdminAccess(claims);
+
         return paymentCardRep.findAll(pageable)
                 .map(paymentCardMapper::toPaymentDto);
     }
 
+
     @Cacheable(value = "cards", key = "#id")
     @Transactional(readOnly = true)
-    public PaymentCardDto getCardById(Long id) {
+    public PaymentCardDto getCardById(Long id,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkUserAccess(id,claims);
+
         return paymentCardRep.findById(id)
                 .map(paymentCardMapper::toPaymentDto)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
@@ -89,18 +107,28 @@ public class PaymentCardService {
 
     @Cacheable(value = "userCards", key = "#userId")
     @Transactional(readOnly = true)
-    public List<PaymentCardDto> getCardsByUserId(Long userId) {
+    public List<PaymentCardDto> getCardsByUserId(Long userId,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkUserAccess(userId, claims);
+
         if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User not found with id: " + userId);
         }
         return paymentCardMapper.toDtoPaymentList(paymentCardRep.findByUserId(userId));
     }
 
-    @CachePut(value = "cards", key = "#id")
+    @Caching(
+            put = { @CachePut(value = "cards", key = "#id") },
+            evict = { @CacheEvict(value = "userCards", key = "#result.userId") }
+    )
     @Transactional
-    public PaymentCardDto updateCard(Long id, PaymentCardDto dto) {
+    public PaymentCardDto updateCard(Long id, PaymentCardDto dto,String token) {
         PaymentCard card = paymentCardRep.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkUserAccess(card.getUser().getId(), claims);
 
         if (!card.getActive()) {
             throw new IllegalStateException("Cannot update inactive card");
@@ -115,12 +143,21 @@ public class PaymentCardService {
         card.setExpirationDate(dto.getExpirationDate());
         card.setActive(dto.getActive());
 
-        return paymentCardMapper.toPaymentDto(paymentCardRep.save(card));
+        PaymentCard updated = paymentCardRep.save(card);
+
+        // evict кэш списка карт пользователя
+        Objects.requireNonNull(cacheManager.getCache("userCards")).evict(updated.getUser().getId());
+
+        return paymentCardMapper.toPaymentDto(updated);
     }
 
     @CacheEvict(value = "cards", key = "#id")
     @Transactional
-    public void activateCard(Long id) {
+    public void activateCard(Long id,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkAdminAccess(claims);
+
         PaymentCard card = paymentCardRep.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found"));
         if (card.getActive() == true) {
@@ -132,7 +169,11 @@ public class PaymentCardService {
 
     @CacheEvict(value = "cards", key = "#id")
     @Transactional
-    public void deactivateCard(Long id) {
+    public void deactivateCard(Long id,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkAdminAccess(claims);
+
         PaymentCard card = paymentCardRep.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Card not found with id: " + id));
 
@@ -148,7 +189,11 @@ public class PaymentCardService {
             @CacheEvict(value = "cards", key = "#id"),
     })
     @Transactional
-    public void deleteCard(Long id) {
+    public void deleteCard(Long id,String token) {
+
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkAdminAccess(claims);
+
         PaymentCard card = paymentCardRep.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Card not found with id: " + id));
         if (!card.getActive()) {
