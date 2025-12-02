@@ -3,6 +3,7 @@ package com.controllers;
 import com.dto.UserDto;
 import com.services.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,16 @@ public class UserController {
             throw new IllegalArgumentException("Missing or invalid Authorization header");
         }
         return header.substring(7);
+    }
+
+    @GetMapping("/by-email")
+    public ResponseEntity<UserDto> getUserByEmail(
+            @RequestParam @Email String email,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        String token = extractToken(authHeader);
+        UserDto user = userService.getUserByEmail(email, token);
+        return ResponseEntity.ok(user);
     }
 
     @PostMapping

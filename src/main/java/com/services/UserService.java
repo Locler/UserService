@@ -7,6 +7,7 @@ import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
 import io.jsonwebtoken.Claims;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -55,6 +56,17 @@ public class UserService {
         User user = userMapper.toEntity(dto);
         user.setActive(true);
         return userMapper.toDto(userRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public UserDto getUserByEmail(String email, String token) {
+        Claims claims = jwtService.parse(token);
+        accessChecker.checkAdminAccess(claims);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
+
+        return userMapper.toDto(user);
     }
 
     @Cacheable(value = "users", key = "#id")
