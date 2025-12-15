@@ -20,9 +20,9 @@ services:
     ports:
       - "6379:6379"
 
-  userservice:
+  user-service:
     build: .
-    container_name: userservice_container
+    container_name: user-service
     depends_on:
       - postgres
       - redis

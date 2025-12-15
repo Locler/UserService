@@ -13,7 +13,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/cards")
@@ -23,85 +26,100 @@ public class PaymentCardController {
 
     private final PaymentCardService paymentCardService;
 
-    private String extractToken(String header) {
-        if (header == null || !header.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Missing or invalid Authorization header");
-        }
-        return header.substring(7);
+    private Set<String> parseRoles(String rolesHeader) {
+        if (rolesHeader == null || rolesHeader.isBlank()) return Set.of();
+        return Arrays.stream(rolesHeader.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
     }
 
+    // CREATE CARD (USER or ADMIN)
     @PostMapping("/user/{userId}")
     public ResponseEntity<PaymentCardDto> createCard(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long userId,
+            @PathVariable @Min(1) Long userId,
             @Valid @RequestBody PaymentCardDto dto,
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        PaymentCardDto created = paymentCardService.createCard(userId, dto, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        PaymentCardDto created = paymentCardService.createCard(userId, dto, requesterId, roles);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // GET CARD BY ID (USER or ADMIN)
     @GetMapping("/{id}")
     public ResponseEntity<PaymentCardDto> getCardById(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        return ResponseEntity.ok(paymentCardService.getCardById(id, token));
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(paymentCardService.getCardById(id, requesterId, roles));
     }
 
+    // GET ALL CARDS (ADMIN only)
     @GetMapping
-    public ResponseEntity<Page<PaymentCardDto>> getAllCards(@PageableDefault Pageable pageable,@RequestHeader("Authorization") String authHeader) {
-        String token = extractToken(authHeader);
-        return ResponseEntity.ok(paymentCardService.getAllCards(pageable,token));
+    public ResponseEntity<Page<PaymentCardDto>> getAllCards(
+            @PageableDefault Pageable pageable,
+            @RequestHeader("X-User-Roles") String rolesHeader
+    ) {
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(paymentCardService.getAllCards(pageable, roles));
     }
 
+    // GET CARDS BY USER ID (USER can only see own cards, ADMIN can see all)
     @GetMapping("/users/{userId}")
     public ResponseEntity<List<PaymentCardDto>> getCardsByUserId(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long userId,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long userId,
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        return ResponseEntity.ok(paymentCardService.getCardsByUserId(userId, token));
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(paymentCardService.getCardsByUserId(userId, requesterId, roles));
     }
 
+    // UPDATE CARD (USER or ADMIN)
     @PutMapping("/{id}")
     public ResponseEntity<PaymentCardDto> updateCard(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @PathVariable @Min(1) Long id,
             @Valid @RequestBody PaymentCardDto dto,
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        return ResponseEntity.ok(paymentCardService.updateCard(id, dto, token));
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(paymentCardService.updateCard(id, dto, requesterId, roles));
     }
 
+    // DEACTIVATE CARD (ADMIN only)
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivateCard(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        paymentCardService.deactivateCard(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        paymentCardService.deactivateCard(id, roles);
         return ResponseEntity.ok().build();
     }
 
+    // ACTIVATE CARD (ADMIN only)
     @PutMapping("/{id}/activate")
     public ResponseEntity<Void> activateCard(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        paymentCardService.activateCard(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        paymentCardService.activateCard(id, roles);
         return ResponseEntity.ok().build();
     }
 
+    // DELETE CARD (ADMIN only)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCard(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        paymentCardService.deleteCard(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        paymentCardService.deleteCard(id, roles);
         return ResponseEntity.noContent().build();
     }
 }

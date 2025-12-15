@@ -15,6 +15,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -23,91 +27,101 @@ public class UserController {
 
     private final UserService userService;
 
-    private String extractToken(String header) {
-        if (header == null || !header.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Missing or invalid Authorization header");
+    private Set<String> parseRoles(String rolesHeader) {
+        if (rolesHeader == null || rolesHeader.isBlank()) {
+            return Set.of();
         }
-        return header.substring(7);
+        return Arrays.stream(rolesHeader.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
     }
 
+    // GET BY EMAIL (ADMIN only)
     @GetMapping("/by-email")
     public ResponseEntity<UserDto> getUserByEmail(
             @RequestParam @Email String email,
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        UserDto user = userService.getUserByEmail(email, token);
-        return ResponseEntity.ok(user);
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(userService.getUserByEmail(email, roles));
     }
 
+    // CREATE USER (ADMIN only)
     @PostMapping
-    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserDto userDto,
-                                              @RequestHeader("Authorization") String authHeader) {
-        String token = extractToken(authHeader);
-        UserDto created = userService.createUser(userDto, token);
+    public ResponseEntity<UserDto> createUser(
+            @Valid @RequestBody UserDto userDto,
+            @RequestHeader("X-User-Roles") String rolesHeader
+    ) {
+        Set<String> roles = parseRoles(rolesHeader);
+        UserDto created = userService.createUser(userDto, roles);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // GET USER BY ID (ADMIN or USER)
     @GetMapping("/{id}")
     public ResponseEntity<UserDto> getUserById(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        UserDto user = userService.getUserById(id, token);
-        return ResponseEntity.ok(user);
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(userService.getUserById(id, requesterId, roles));
     }
 
+    // GET ALL USERS (ADMIN only)
     @GetMapping
     public ResponseEntity<Page<UserDto>> getAllUsers(
             @RequestParam(required = false) @Size(min = 2, max = 50) String name,
             @RequestParam(required = false) @Size(min = 2, max = 50) String surname,
             @PageableDefault Pageable pageable,
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        Page<UserDto> users = userService.getAllUsers(name, surname, pageable, token);
-        return ResponseEntity.ok(users);
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(userService.getAllUsers(name, surname, pageable, roles));
     }
 
+    // UPDATE USER (ADMIN or USER)
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
+            @PathVariable @Min(1) Long id,
             @Valid @RequestBody UserDto userDto,
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        UserDto updated = userService.updateUser(id, userDto, token);
-        return ResponseEntity.ok(updated);
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(userService.updateUser(id, userDto, requesterId, roles));
     }
 
+    // DEACTIVATE USER (ADMIN only)
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivateUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        userService.deactivateUser(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        userService.deactivateUser(id, roles);
         return ResponseEntity.ok().build();
     }
 
+    // ACTIVATE USER (ADMIN only)
     @PutMapping("/{id}/activate")
     public ResponseEntity<Void> activateUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        userService.activateUser(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        userService.activateUser(id, roles);
         return ResponseEntity.ok().build();
     }
 
+    // DELETE USER (ADMIN only)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(
-            @PathVariable @Min(value = 1, message = "ID must be positive") Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable @Min(1) Long id,
+            @RequestHeader("X-User-Roles") String rolesHeader
     ) {
-        String token = extractToken(authHeader);
-        userService.deleteUser(id, token);
+        Set<String> roles = parseRoles(rolesHeader);
+        userService.deleteUser(id, roles);
         return ResponseEntity.noContent().build();
     }
 }

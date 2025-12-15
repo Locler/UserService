@@ -6,7 +6,6 @@ import com.entities.User;
 import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
-import io.jsonwebtoken.Claims;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -19,32 +18,29 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 @Service
 public class UserService {
 
     private final UserMapper userMapper;
-
     private final UserRep userRepository;
-
-    private final JwtService jwtService;
-
     private final AccessChecker accessChecker;
 
-
     @Autowired
-    public UserService(UserMapper userMapper, UserRep userRepository, JwtService jwtService, AccessChecker accessChecker) {
+    public UserService(UserMapper userMapper,
+                       UserRep userRepository,
+                       AccessChecker accessChecker) {
         this.userMapper = userMapper;
         this.userRepository = userRepository;
-        this.jwtService = jwtService;
         this.accessChecker = accessChecker;
     }
 
+    /* ================= CREATE ================= */
+
     @CachePut(value = "users", key = "#result.id")
-    @Transactional
-    public UserDto createUser(UserDto dto,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    public UserDto createUser(UserDto dto, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalStateException("User with this email already exists");
@@ -55,35 +51,37 @@ public class UserService {
 
         User user = userMapper.toEntity(dto);
         user.setActive(true);
+
         return userMapper.toDto(userRepository.save(user));
     }
 
+    /* ================= READ ================= */
+
     @Transactional(readOnly = true)
-    public UserDto getUserByEmail(String email, String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    public UserDto getUserByEmail(String email, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
-
-        return userMapper.toDto(user);
+        return userRepository.findByEmail(email)
+                .map(userMapper::toDto)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("User not found with email: " + email));
     }
 
     @Cacheable(value = "users", key = "#id")
     @Transactional(readOnly = true)
-    public UserDto getUserById(Long id,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkUserAccess(id, claims);
+    public UserDto getUserById(Long id, Long requesterId, Set<String> roles) {
+        accessChecker.checkUserAccess(id, requesterId, roles);
 
         return userRepository.findById(id)
                 .map(userMapper::toDto)
-                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+                .orElseThrow(() ->
+                        new EntityNotFoundException("User not found with id: " + id));
     }
 
     @Transactional(readOnly = true)
-    public Page<UserDto> getAllUsers(String name, String surname, Pageable pageable,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    public Page<UserDto> getAllUsers(String name, String surname,
+                                     Pageable pageable, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
         Specification<User> spec = UserSpecification.firstNameContains(name)
                 .and(UserSpecification.surnameContains(surname));
@@ -92,16 +90,19 @@ public class UserService {
                 .map(userMapper::toDto);
     }
 
+    /* ================= UPDATE ================= */
+
     @CachePut(value = "users", key = "#id")
-    @Transactional
-    public UserDto updateUser(Long id, UserDto dto,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkUserAccess(id, claims);
+    public UserDto updateUser(Long id, UserDto dto,
+                              Long requesterId, Set<String> roles) {
+        accessChecker.checkUserAccess(id, requesterId, roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        if (!user.getActive()) throw new IllegalStateException("Cannot update deactivated user");
+        if (!user.getActive()) {
+            throw new IllegalStateException("Cannot update deactivated user");
+        }
 
         user.setName(dto.getName());
         user.setSurname(dto.getSurname());
@@ -111,46 +112,51 @@ public class UserService {
         return userMapper.toDto(userRepository.save(user));
     }
 
+    /* ================= STATUS ================= */
+
     @CacheEvict(value = "users", key = "#id")
-    @Transactional
-    public void activateUser(Long id,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    public void activateUser(Long id, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        if (user.getActive()) throw new IllegalStateException("User already active");
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (user.getActive()) {
+            throw new IllegalStateException("User already active");
+        }
 
         user.setActive(true);
-        userRepository.save(user);
     }
 
     @CacheEvict(value = "users", key = "#id")
-    @Transactional
-    public void deactivateUser(Long id,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    public void deactivateUser(Long id, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        if (!user.getActive()) throw new IllegalStateException("User already inactive");
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (!user.getActive()) {
+            throw new IllegalStateException("User already inactive");
+        }
 
         user.setActive(false);
-        userRepository.save(user);
     }
 
-    @CacheEvict(value = { "users", "userCards" }, key = "#id")
-    @Transactional
-    public void deleteUser(Long id,String token) {
-        Claims claims = jwtService.parse(token);
-        accessChecker.checkAdminAccess(claims);
+    /* ================= DELETE ================= */
+
+    @CacheEvict(value = {"users", "userCards"}, key = "#id")
+    public void deleteUser(Long id, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
         userRepository.delete(user);
     }
 
-    @CacheEvict(value = { "users", "userCards" }, allEntries = true)
+    /* ================= CACHE ================= */
+
+    @CacheEvict(value = {"users", "userCards"}, allEntries = true)
     public void clearAllCache() {
         System.out.println("Clearing all user caches");
     }
