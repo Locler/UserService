@@ -43,6 +43,9 @@ public class UserController {
             @RequestHeader("X-User-Roles") String rolesHeader
     ) {
         Set<String> roles = parseRoles(rolesHeader);
+
+        System.out.println("rolesHeader: " + roles);
+
         return ResponseEntity.ok(userService.getUserByEmail(email, roles));
     }
 
@@ -50,10 +53,14 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserDto> createUser(
             @Valid @RequestBody UserDto userDto,
-            @RequestHeader("X-User-Roles") String rolesHeader
+            @RequestHeader(value = "X-User-Roles", required = false) String rolesHeader,
+            @RequestHeader(value = "X-Service-Call", required = false, defaultValue = "false") boolean isServiceCall
     ) {
         Set<String> roles = parseRoles(rolesHeader);
-        UserDto created = userService.createUser(userDto, roles);
+
+        // Передаём флаг в сервис
+        UserDto created = userService.createUser(userDto, roles, isServiceCall);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

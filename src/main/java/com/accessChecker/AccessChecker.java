@@ -1,37 +1,30 @@
 package com.accessChecker;
 
 import org.springframework.stereotype.Component;
-import org.springframework.security.access.AccessDeniedException;
+
 
 import java.util.Set;
 
 @Component
 public class AccessChecker {
 
+    // Проверка для обычных пользователей
     public void checkAdminAccess(Set<String> roles) {
-        if (roles == null || !roles.contains("ADMIN")) {
-            throw new AccessDeniedException("Admin access required");
+        if (!roles.contains("ROLE_ADMIN")) {
+            throw new SecurityException("Admin role required");
         }
     }
 
-    public void checkUserAccess(Long targetUserId,
-                                Long requesterId,
-                                Set<String> roles) {
+    // Проверка для сервисного вызова
+    public void checkAdminAccess(Set<String> roles, boolean isServiceCall) {
+        if (isServiceCall) return; // сервис имеет полный доступ
+        checkAdminAccess(roles);
+    }
 
-        if (roles == null) {
-            throw new AccessDeniedException("Roles are missing");
+    // Проверка доступа для обычного пользователя или админа
+    public void checkUserAccess(Long targetUserId, Long requesterId, Set<String> roles) {
+        if (!roles.contains("ROLE_ADMIN") && !targetUserId.equals(requesterId)) {
+            throw new SecurityException("Access denied");
         }
-
-        // ADMIN может всё
-        if (roles.contains("ADMIN")) {
-            return;
-        }
-
-        // USER только себя
-        if (roles.contains("USER") && targetUserId.equals(requesterId)) {
-            return;
-        }
-
-        throw new AccessDeniedException("Access denied");
     }
 }

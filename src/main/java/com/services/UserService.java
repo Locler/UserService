@@ -6,6 +6,7 @@ import com.entities.User;
 import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
+import jakarta.annotation.security.PermitAll;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -36,11 +37,10 @@ public class UserService {
         this.accessChecker = accessChecker;
     }
 
-    /* ================= CREATE ================= */
-
     @CachePut(value = "users", key = "#result.id")
-    public UserDto createUser(UserDto dto, Set<String> roles) {
-        accessChecker.checkAdminAccess(roles);
+    public UserDto createUser(UserDto dto, Set<String> roles, boolean isServiceCall) {
+
+        accessChecker.checkAdminAccess(roles, isServiceCall); // проверка с флагом
 
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalStateException("User with this email already exists");
@@ -54,8 +54,6 @@ public class UserService {
 
         return userMapper.toDto(userRepository.save(user));
     }
-
-    /* ================= READ ================= */
 
     @Transactional(readOnly = true)
     public UserDto getUserByEmail(String email, Set<String> roles) {
@@ -90,8 +88,6 @@ public class UserService {
                 .map(userMapper::toDto);
     }
 
-    /* ================= UPDATE ================= */
-
     @CachePut(value = "users", key = "#id")
     public UserDto updateUser(Long id, UserDto dto,
                               Long requesterId, Set<String> roles) {
@@ -111,8 +107,6 @@ public class UserService {
 
         return userMapper.toDto(userRepository.save(user));
     }
-
-    /* ================= STATUS ================= */
 
     @CacheEvict(value = "users", key = "#id")
     public void activateUser(Long id, Set<String> roles) {
