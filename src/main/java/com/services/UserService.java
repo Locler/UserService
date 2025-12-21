@@ -6,7 +6,6 @@ import com.entities.User;
 import com.mappers.UserMapper;
 import com.repositories.UserRep;
 import com.specifications.UserSpecification;
-import jakarta.annotation.security.PermitAll;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -68,6 +67,7 @@ public class UserService {
     @Cacheable(value = "users", key = "#id")
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id, Long requesterId, Set<String> roles) {
+
         accessChecker.checkUserAccess(id, requesterId, roles);
 
         return userRepository.findById(id)
@@ -136,8 +136,6 @@ public class UserService {
         user.setActive(false);
     }
 
-    /* ================= DELETE ================= */
-
     @CacheEvict(value = {"users", "userCards"}, key = "#id")
     public void deleteUser(Long id, Set<String> roles) {
         accessChecker.checkAdminAccess(roles);
@@ -147,8 +145,6 @@ public class UserService {
 
         userRepository.delete(user);
     }
-
-    /* ================= CACHE ================= */
 
     @CacheEvict(value = {"users", "userCards"}, allEntries = true)
     public void clearAllCache() {
