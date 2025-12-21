@@ -37,6 +37,7 @@ public class UserService {
     }
 
     @CachePut(value = "users", key = "#result.id")
+    @Transactional
     public UserDto createUser(UserDto dto, Set<String> roles, boolean isServiceCall) {
 
         accessChecker.checkAdminAccess(roles, isServiceCall); // проверка с флагом
@@ -89,6 +90,7 @@ public class UserService {
     }
 
     @CachePut(value = "users", key = "#id")
+    @Transactional
     public UserDto updateUser(Long id, UserDto dto,
                               Long requesterId, Set<String> roles) {
         accessChecker.checkUserAccess(id, requesterId, roles);
@@ -109,44 +111,50 @@ public class UserService {
     }
 
     @CacheEvict(value = "users", key = "#id")
+    @Transactional
     public void activateUser(Long id, Set<String> roles) {
         accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
-        if (user.getActive()) {
-            throw new IllegalStateException("User already active");
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (user.getActive() == true) {
+            throw new IllegalStateException("User is already in this state");
         }
-
-        user.setActive(true);
+        userRepository.updateUserStatus(id,true);
     }
 
     @CacheEvict(value = "users", key = "#id")
+    @Transactional
     public void deactivateUser(Long id, Set<String> roles) {
         accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
 
         if (!user.getActive()) {
             throw new IllegalStateException("User already inactive");
         }
 
         user.setActive(false);
+        userRepository.save(user);
     }
 
     @CacheEvict(value = {"users", "userCards"}, key = "#id")
+    @Transactional
     public void deleteUser(Long id, Set<String> roles) {
         accessChecker.checkAdminAccess(roles);
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
+        if (!user.getActive()) {
+            throw new IllegalStateException("User already inactive");
+        }
+        user.setActive(false);
         userRepository.delete(user);
     }
 
     @CacheEvict(value = {"users", "userCards"}, allEntries = true)
+    @Transactional
     public void clearAllCache() {
         System.out.println("Clearing all user caches");
     }
