@@ -45,9 +45,8 @@ public class PaymentCardService {
         this.accessChecker = accessChecker;
     }
 
-    @CachePut(value = "cards", key = "#result.id")
-    @CacheEvict(value = "userCards", key = "#userId")
     @Transactional
+    @CacheEvict(value = "userCards", key = "#userId")
     public PaymentCardDto createCard(Long userId, PaymentCardDto dto, Long requesterId, Set<String> roles) {
         accessChecker.checkUserAccess(userId, requesterId, roles);
 
@@ -77,7 +76,7 @@ public class PaymentCardService {
         return paymentCardRep.findAll(pageable).map(paymentCardMapper::toPaymentDto);
     }
 
-    @Cacheable(value = "cards", key = "#id")
+
     @Transactional(readOnly = true)
     public PaymentCardDto getCardById(Long id, Long requesterId, Set<String> roles) {
         PaymentCard card = paymentCardRep.findById(id)

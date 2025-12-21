@@ -9,7 +9,6 @@ import com.specifications.UserSpecification;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -65,7 +64,6 @@ public class UserService {
                         new EntityNotFoundException("User not found with email: " + email));
     }
 
-    @Cacheable(value = "users", key = "#id")
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id, Long requesterId, Set<String> roles) {
 
