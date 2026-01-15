@@ -1,26 +1,30 @@
 package com.accessChecker;
 
-import com.enums.Role;
-import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Component;
-import org.springframework.security.access.AccessDeniedException;
+
+
+import java.util.Set;
 
 @Component
 public class AccessChecker {
 
-    public void checkUserAccess(Long requestedUserId, Claims claims) {
-        Role role = Role.valueOf(claims.get("role", String.class)); // конвертация из JWT
-        Long tokenUserId = Long.valueOf(claims.getSubject());
-
-        if (role == Role.ROLE_USER && !tokenUserId.equals(requestedUserId)) {
-            throw new AccessDeniedException("Access denied");
+    // Проверка для обычных пользователей
+    public void checkAdminAccess(Set<String> roles) {
+        if (!roles.contains("ROLE_ADMIN")) {
+            throw new SecurityException("Admin role required");
         }
     }
 
-    public void checkAdminAccess(Claims claims) {
-        Role role = Role.valueOf(claims.get("role", String.class));
-        if (role != Role.ROLE_ADMIN) {
-            throw new AccessDeniedException("Access denied");
+    // Проверка для сервисного вызова
+    public void checkAdminAccess(Set<String> roles, boolean isServiceCall) {
+        if (isServiceCall) return; // сервис имеет полный доступ
+        checkAdminAccess(roles);
+    }
+
+    // Проверка доступа для обычного пользователя или админа
+    public void checkUserAccess(Long targetUserId, Long requesterId, Set<String> roles) {
+        if (!roles.contains("ROLE_ADMIN") && !targetUserId.equals(requesterId)) {
+            throw new SecurityException("Access denied");
         }
     }
 }

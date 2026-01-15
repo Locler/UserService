@@ -20,14 +20,14 @@ services:
     ports:
       - "6379:6379"
 
-  userservice:
+  user-service:
     build: .
-    container_name: userservice_container
+    container_name: user-service
     depends_on:
       - postgres
       - redis
     ports:
-      - "8080:8080"
+      - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: ${DB_URL}
