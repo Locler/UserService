@@ -1,7 +1,7 @@
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY target/*.jar app.jar
+COPY target/UserService-1.0.0.jar app.jar
 EXPOSE 8082
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
