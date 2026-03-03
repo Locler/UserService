@@ -1,6 +1,7 @@
 package com.redisCleaner;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 
 @Component
+@ConditionalOnBean(StringRedisTemplate.class)
 @RequiredArgsConstructor
 public class RedisStartupCleaner {
 
